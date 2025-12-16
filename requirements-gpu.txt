@@ -1,0 +1,14 @@
+# GPU-specific requirements
+# Install these in addition to requirements.txt for GPU acceleration
+
+# PyTorch with CUDA support (adjust for your CUDA version)
+# For CUDA 11.8 (your current setup):
+torch>=2.0.0
+torchvision>=0.15.0
+
+# FAISS GPU version (replaces faiss-cpu)
+faiss-gpu>=1.7.4
+
+# Note: Uninstall faiss-cpu before installing faiss-gpu:
+# pip uninstall faiss-cpu
+# pip install -r requirements-gpu.txt

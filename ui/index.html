@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP RAG System - Document Q&A</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .search-section {
+            margin-bottom: 30px;
+        }
+
+        .search-section h2 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .answer-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .answer-section h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .answer-text {
+            line-height: 1.6;
+            font-size: 1em;
+            color: #333;
+        }
+
+        .sources-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .sources-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .source-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            transition: box-shadow 0.3s;
+        }
+
+        .source-item:hover {
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .source-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .source-file {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .source-score {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .source-text {
+            color: #555;
+            line-height: 1.5;
+            font-size: 0.95em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% {
+                content: '';
+            }
+            40% {
+                content: '.';
+            }
+            60% {
+                content: '..';
+            }
+            80%, 100% {
+                content: '...';
+            }
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d32f2f;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #d32f2f;
+            margin: 20px 0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .status-badge.offline {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .search-results {
+            display: grid;
+            gap: 10px;
+        }
+
+        .search-result-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 ERP RAG System</h1>
+            <p>Intelligent Document Q&A with Vector Search</p>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('qa')">Q&A</button>
+                <button class="tab-button" onclick="switchTab('search')">Search</button>
+                <button class="tab-button" onclick="switchTab('info')">Info</button>
+            </div>
+
+            <!-- Q&A Tab -->
+            <div id="qa" class="tab-content active">
+                <div class="search-section">
+                    <h2>Ask a Question</h2>
+                    <div class="input-group">
+                        <input type="text" id="queryInput" placeholder="E.g., What is ERP? How does it work?" onkeypress="if(event.key==='Enter') search()">
+                        <button onclick="search()">Search</button>
+                    </div>
+                </div>
+
+                <div id="qaResults" class="results">
+                    <div class="answer-section">
+                        <h3>Answer</h3>
+                        <div class="answer-text" id="answerText"></div>
+                    </div>
+
+                    <div class="sources-section">
+                        <h3>📖 Sources (<span id="sourceCount">0</span>)</h3>
+                        <div class="sources-list" id="sourcesList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Tab -->
+            <div id="search" class="tab-content">
+                <div class="search-section">
+                    <h2>Semantic Search</h2>
+                    <div class="input-group">
+                        <input type="text" id="searchInput" placeholder="Search for related documents..." onkeypress="if(event.key==='Enter') semanticSearch()">
+                        <button onclick="semanticSearch()">Search</button>
+                    </div>
+                </div>
+
+                <div id="searchResults" class="results">
+                    <div class="search-results" id="searchResultsList"></div>
+                </div>
+            </div>
+
+            <!-- Info Tab -->
+            <div id="info" class="tab-content">
+                <h2>System Information</h2>
+                <div id="systemInfo" style="margin-top: 20px;"></div>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">Processing</div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'info') {
+                loadSystemInfo();
+            }
+        }
+
+        function showLoading(show = true) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        async function search() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) {
+                showError('Please enter a question');
+                return;
+            }
+
+            hideError();
+            showLoading(true);
+            document.getElementById('qaResults').classList.remove('active');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                document.getElementById('answerText').textContent = data.answer;
+                document.getElementById('sourceCount').textContent = data.sources.length;
+                
+                const sourcesList = document.getElementById('sourcesList');
+                sourcesList.innerHTML = data.sources.map((source, idx) => `
+                    <div class="source-item">
+                        <div class="source-header">
+                            <span class="source-file">📄 ${source.source_file}</span>
+                            <span class="source-score">Score: ${(source.score * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="source-text">${escapeHtml(source.text.substring(0, 300))}...</div>
+                    </div>
+                `).join('');
+
+                document.getElementById('qaResults').classList.add('active');
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function semanticSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                showError('Please enter a search term');
+                return;
+            }
+
+            hideError();
+            showLoading(true);
+            document.getElementById('searchResults').classList.remove('active');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query, top_k: 5 })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const results = await response.json();
+                
+                const resultsList = document.getElementById('searchResultsList');
+                resultsList.innerHTML = results.map(result => `
+                    <div class="search-result-item">
+                        <div class="source-header">
+                            <span class="source-file">📄 ${result.source_file}</span>
+                            <span class="source-score">Relevance: ${(result.score * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="source-text">${escapeHtml(result.text.substring(0, 400))}...</div>
+                    </div>
+                `).join('');
+
+                document.getElementById('searchResults').classList.add('active');
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadSystemInfo() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE}/info`);
+                if (!response.ok) throw new Error('Failed to load info');
+                
+                const info = await response.json();
+                const infoDiv = document.getElementById('systemInfo');
+                
+                infoDiv.innerHTML = `
+                    <div style="display: grid; gap: 15px;">
+                        <div class="source-item">
+                            <div><strong>📊 Total Chunks:</strong> ${info.total_chunks}</div>
+                            <div><strong>🧠 Embedding Model:</strong> ${info.embedding_model}</div>
+                            <div><strong>🤖 LLM Model:</strong> ${info.llm_model}</div>
+                            <div style="margin-top: 10px;">
+                                <span class="status-badge">✓ System Online</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                showError(`Failed to load system info: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Load system info on page load
+        window.addEventListener('load', () => {
+            loadSystemInfo();
+        });
+    </script>
+</body>
+</html>
