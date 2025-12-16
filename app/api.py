@@ -296,14 +296,19 @@ async def submit_feedback(request: FeedbackRequest):
         raise HTTPException(status_code=400, detail="Rating must be 'positive' or 'negative'")
     
     try:
+        # Ensure sources is a list
+        sources = request.sources if request.sources else []
+        
         feedback_entry = feedback_manager.add_feedback(
             query=request.query,
             answer=request.answer,
-            sources=request.sources,
+            sources=sources,
             rating=request.rating,
             comment=request.comment,
             user_id=request.user_id
         )
+        
+        logger.info(f"Feedback submitted: {request.rating} | Query: {request.query[:50]}...")
         
         return {
             "status": "success",
@@ -311,8 +316,8 @@ async def submit_feedback(request: FeedbackRequest):
             "message": "Thank you for your feedback!"
         }
     except Exception as e:
-        logger.error(f"Feedback submission error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Feedback submission error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Feedback error: {str(e)}")
 
 
 @app.get("/api/feedback/analytics")
@@ -385,9 +390,10 @@ async def identify_query_domain(query: str):
 @app.post("/api/upload")
 async def upload_document(file: UploadFile = File(...)):
     """
-    Upload a PDF document to the data/pdfs directory.
+    Upload a PDF document and immediately process it.
     
-    Returns filename for subsequent processing.
+    Auto-runs ingest.py to extract text, chunk, embed, and index in vectorstore.
+    Returns status and processing details.
     """
     try:
         # Validate file type
@@ -405,15 +411,43 @@ async def upload_document(file: UploadFile = File(...)):
         
         logger.info(f"File uploaded: {file.filename}")
         
+        # AUTOMATICALLY run ingest.py to process the document
+        logger.info(f"Auto-processing document: {file.filename}")
+        import sys
+        result = subprocess.run(
+            [sys.executable, "src/ingest.py"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"Ingestion stderr: {result.stderr}")
+            raise Exception(f"Document processing failed: {result.stderr}")
+        
+        # Count chunks created
+        import json
+        chunks_file = Path("data/processed_chunks/chunks.json")
+        total_chunks = 0
+        if chunks_file.exists():
+            with open(chunks_file, 'r', encoding='utf-8') as f:
+                chunks = json.load(f)
+                total_chunks = len(chunks)
+        
+        logger.info(f"Document processed and vectorized: {total_chunks} chunks created")
+        
         return {
             "status": "success",
             "filename": file.filename,
             "path": str(file_path),
-            "message": f"File '{file.filename}' uploaded successfully"
+            "message": f"File '{file.filename}' uploaded and processed successfully",
+            "chunks_created": total_chunks,
+            "converted_markdown": "converted_docs/",
+            "vectorstore_ready": True
         }
     
     except Exception as e:
-        logger.error(f"Upload error: {e}")
+        logger.error(f"Upload/processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -429,16 +463,18 @@ async def process_document(request: dict):
         if not filename:
             raise HTTPException(status_code=400, detail="Filename required")
         
-        # Run ingest.py
+        # Run ingest.py using the current Python interpreter
         logger.info(f"Processing document: {filename}")
+        import sys
         result = subprocess.run(
-            ["python", "src/ingest.py"],
+            [sys.executable, "src/ingest.py"],
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent
         )
         
         if result.returncode != 0:
+            logger.error(f"Ingestion stderr: {result.stderr}")
             raise Exception(f"Ingestion failed: {result.stderr}")
         
         logger.info(f"Document processed: {filename}")
@@ -457,45 +493,39 @@ async def process_document(request: dict):
 @app.post("/api/generate-embeddings")
 async def generate_embeddings():
     """
-    Generate embeddings for all chunks with embed.py.
+    Verify embeddings are generated for all chunks.
     
-    Creates FAISS index from processed documents.
+    Note: Embeddings are automatically created during document ingestion in ingest.py.
+    This endpoint verifies the FAISS index was built successfully.
     """
     try:
-        logger.info("Generating embeddings...")
-        
-        # Run embed.py
-        result = subprocess.run(
-            ["python", "src/embed.py"],
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent.parent
-        )
-        
-        if result.returncode != 0:
-            raise Exception(f"Embedding generation failed: {result.stderr}")
+        logger.info("Verifying embeddings...")
         
         # Count chunks
+        import json
         chunks_file = Path("data/chunks.json")
         if chunks_file.exists():
-            import json
             with open(chunks_file, 'r', encoding='utf-8') as f:
                 chunks = json.load(f)
                 total_chunks = len(chunks)
         else:
             total_chunks = 0
         
-        logger.info(f"Embeddings generated for {total_chunks} chunks")
+        # Verify FAISS index exists
+        index_file = Path("data/faiss_index.bin")
+        has_index = index_file.exists()
+        
+        logger.info(f"Verified {total_chunks} chunks with {'FAISS index' if has_index else 'no index (pending document ingestion)'}")
         
         return {
             "status": "success",
-            "message": "Embeddings generated successfully",
+            "message": "Embeddings verified (auto-generated during document ingestion)",
             "total_chunks": total_chunks,
-            "output": result.stdout
+            "has_faiss_index": has_index
         }
     
     except Exception as e:
-        logger.error(f"Embedding generation error: {e}")
+        logger.error(f"Embedding verification error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

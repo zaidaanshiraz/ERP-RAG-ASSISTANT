@@ -1866,7 +1866,7 @@
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const uploadResponse = await fetch(`${API_BASE}/api/upload`, {
+                const uploadResponse = await fetch(`${API_BASE}/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -1882,7 +1882,7 @@
                 progressText.textContent = 'Processing document...';
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                const ingestResponse = await fetch(`${API_BASE}/api/process-document`, {
+                const ingestResponse = await fetch(`${API_BASE}/process-document`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filename: uploadResult.filename })
@@ -1898,7 +1898,7 @@
                 progressText.textContent = 'Generating embeddings...';
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                const embedResponse = await fetch(`${API_BASE}/api/generate-embeddings`, {
+                const embedResponse = await fetch(`${API_BASE}/generate-embeddings`, {
                     method: 'POST'
                 });
 
@@ -1913,7 +1913,7 @@
                 progressText.textContent = 'Reloading system...';
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                const reloadResponse = await fetch(`${API_BASE}/api/reload`, {
+                const reloadResponse = await fetch(`${API_BASE}/reload`, {
                     method: 'POST'
                 });
 
@@ -2032,7 +2032,7 @@
             buttons.forEach(btn => btn.disabled = true);
             
             try {
-                const response = await fetch(`${API_BASE}/api/feedback`, {
+                const response = await fetch(`${API_BASE}/feedback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

@@ -19,7 +19,12 @@ class Config:
         
         # Model configuration (keep existing defaults)
         self.embedding_model = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        self.ollama_model = os.getenv("OLLAMA_MODEL", "mistral")
+        # qwen2.5:3b-instruct - Optimized for speed and quality on all platforms
+        # GPU (GTX 1660): 1-3 seconds
+        # CPU (8+ cores): 4-6 seconds
+        # Iris Xe: 5-10 seconds
+        # Small size (2.3GB) but excellent quality
+        self.ollama_model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b-instruct")
         
     def _get_device_config(self) -> bool:
         """
@@ -28,7 +33,7 @@ class Config:
         Returns:
             True if GPU should be used, False for CPU-only
         """
-        use_gpu = os.getenv("USE_GPU", "auto").lower()
+        use_gpu = os.getenv("USE_GPU", "false").lower()
         
         if use_gpu == "true":
             return True

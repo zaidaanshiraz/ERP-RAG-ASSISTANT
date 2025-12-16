@@ -51,9 +51,9 @@ class OllamaClient:
     def __init__(
         self,
         base_url: str = "http://localhost:11434",
-        model: str = "mistral",
+        model: str = "qwen2.5:3b-instruct",
         temperature: float = 0.3,
-        max_tokens: int = 800
+        max_tokens: int = 500
     ):
         """
         Initialize Ollama client.
@@ -62,7 +62,7 @@ class OllamaClient:
             base_url: Ollama API base URL
             model: Model name to use
             temperature: Generation temperature (0.3 = balanced creativity/consistency)
-            max_tokens: Maximum tokens to generate (800 for comprehensive responses)
+            max_tokens: Maximum tokens to generate (500 for faster responses on GPU)
         """
         self.base_url = base_url
         self.model = model
@@ -75,15 +75,29 @@ class OllamaClient:
         try:
             response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             models = response.json().get("models", [])
-            model_names = [m["name"].split(":")[0] for m in models]
+            model_names = [m["name"] for m in models]
             
-            if not any(self.model in m for m in model_names):
+            # Check if model exists (handle both "mistral" and "mistral:latest")
+            model_base = self.model.split(":")[0]  # Get base name (e.g., "mistral" from "mistral:latest")
+            available_bases = [name.split(":")[0] for name in model_names]
+            
+            if self.model not in model_names and model_base not in available_bases:
                 raise RuntimeError(
                     f"Model '{self.model}' not found in Ollama.\n"
                     f"Available models: {', '.join(model_names) if model_names else 'None'}\n"
                     f"Pull it with: ollama pull {self.model}"
                 )
-            print(f"[Ollama] Connected. Using model: {self.model}")
+            
+            # Use exact model name if available, otherwise use base name with :latest
+            if self.model in model_names:
+                model_to_use = self.model
+            else:
+                # Find the exact variant (e.g., mistral:latest)
+                matching = [name for name in model_names if name.startswith(model_base)]
+                model_to_use = matching[0] if matching else self.model
+                self.model = model_to_use  # Update to use exact name
+            
+            print(f"[Ollama] Connected. Using model: {model_to_use}")
         except requests.exceptions.ConnectionError as e:
             raise RuntimeError(
                 f"Cannot connect to Ollama at {self.base_url}\n"
@@ -121,12 +135,12 @@ class OllamaClient:
                         "num_predict": self.max_tokens,
                     }
                 },
-                timeout=180
+                timeout=300
             )
             response.raise_for_status()
             return response.json()["message"]["content"].strip()
         except requests.exceptions.Timeout:
-            raise RuntimeError(f"Ollama request timed out after 180 seconds") from None
+            raise RuntimeError(f"Ollama request timed out after 300 seconds. Model may be running on CPU. Try: ollama pull mistral:7b-instruct-q4_K_M (quantized version)") from None
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Ollama API error: {e}") from e
         except KeyError:

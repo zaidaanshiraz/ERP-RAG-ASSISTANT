@@ -2,24 +2,21 @@
 Document ingestion and chunking pipeline for RAG.
 
 Processes PDF files:
-1. Extract text and structure with Docling (tables, headings, etc.)
-2. Save converted documents as markdown
-3. Clean headers, footers, page numbers, extra whitespace
-4. Split into overlapping chunks
-5. Save as JSON for vector indexing
+1. Extract text with PyMuPDF (fast, no OCR)
+2. Clean headers, footers, page numbers, extra whitespace
+3. Split into overlapping chunks
+4. Save as JSON for vector indexing
 """
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import List, Dict, Tuple
-try:
-    import fitz  # PyMuPDF (fallback)
-    HAS_PYMUPDF = True
-except ImportError:
-    HAS_PYMUPDF = False
-    print("Warning: PyMuPDF not installed. PDF fallback processing will be disabled.")
-from docling.document_converter import DocumentConverter
+import fitz  # PyMuPDF
+
+# Add parent directory to path so imports work from src/
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 class TextCleaner:
@@ -66,57 +63,6 @@ class TextCleaner:
         text = TextCleaner.remove_headers_footers(text)
         text = TextCleaner.normalize_whitespace(text)
         return text.strip()
-
-
-class DoclingProcessor:
-    """Process PDFs using Docling for structured extraction."""
-    
-    def __init__(self, output_dir: str = "data/converted_docs"):
-        """
-        Initialize Docling processor.
-        
-        Args:
-            output_dir: Directory to save converted markdown files
-        """
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.converter = DocumentConverter()
-    
-    def convert_pdf(self, pdf_path: Path) -> Tuple[str, Path]:
-        """
-        Convert PDF to structured markdown using Docling.
-        
-        Args:
-            pdf_path: Path to PDF file
-        
-        Returns:
-            Tuple of (markdown_text, saved_markdown_path)
-        
-        Raises:
-            RuntimeError: If conversion fails
-        """
-        try:
-            print(f"  Converting {pdf_path.name} with Docling...")
-            
-            # Convert PDF to structured format
-            result = self.converter.convert(str(pdf_path))
-            
-            # Export to markdown
-            markdown_text = result.document.export_to_markdown()
-            
-            # Save markdown file
-            md_filename = pdf_path.stem + ".md"
-            md_path = self.output_dir / md_filename
-            
-            with open(md_path, 'w', encoding='utf-8') as f:
-                f.write(markdown_text)
-            
-            print(f"  Saved converted document: {md_path.name}")
-            
-            return markdown_text, md_path
-            
-        except Exception as e:
-            raise RuntimeError(f"Docling conversion failed for {pdf_path.name}: {e}") from e
 
 
 class DocumentChunker:
@@ -171,7 +117,7 @@ class DocumentChunker:
 
 
 class DocumentIngester:
-    """Main ingestion pipeline using Docling."""
+    """Main ingestion pipeline using PyMuPDF."""
     
     def __init__(
         self,
@@ -187,7 +133,7 @@ class DocumentIngester:
         Args:
             raw_docs_dir: Directory containing PDF files
             output_dir: Directory to save processed chunks
-            converted_docs_dir: Directory to save converted markdown files
+            converted_docs_dir: Directory to save extracted markdown files
             chunk_size: Words per chunk
             overlap: Word overlap between chunks
         """
@@ -210,11 +156,10 @@ class DocumentIngester:
         
         self.cleaner = TextCleaner()
         self.chunker = DocumentChunker(chunk_size=chunk_size, overlap=overlap)
-        self.docling_processor = DoclingProcessor(output_dir=str(converted_docs_dir))
     
     def extract_pdf_text(self, pdf_path: Path) -> str:
         """
-        Extract text from PDF with page info.
+        Extract text from PDF with page info and save as markdown.
         
         Args:
             pdf_path: Path to PDF file
@@ -237,6 +182,12 @@ class DocumentIngester:
             doc.close()
             full_text = '\n'.join(pages_text)
             
+            # Save raw markdown to converted_docs
+            md_filename = pdf_path.stem + ".md"
+            md_path = self.converted_docs_dir / md_filename
+            with open(md_path, 'w', encoding='utf-8') as f:
+                f.write(full_text)
+            
             # Clean the text
             cleaned = self.cleaner.clean_text(full_text)
             return cleaned
@@ -246,7 +197,7 @@ class DocumentIngester:
     
     def ingest_document(self, pdf_path: Path) -> Tuple[List[Dict], int]:
         """
-        Ingest a single PDF document using Docling.
+        Ingest a single PDF document using PyMuPDF.
         
         Args:
             pdf_path: Path to PDF file
@@ -254,19 +205,15 @@ class DocumentIngester:
         Returns:
             Tuple of (chunks list, word count)
         """
-        print(f"  Processing {pdf_path.name} with Docling...")
+        print(f"  Extracting text from {pdf_path.name}...")
         
-        # Convert PDF to markdown using Docling
-        markdown_text, md_path = self.docling_processor.convert_pdf(pdf_path)
+        # Extract text using PyMuPDF
+        text = self.extract_pdf_text(pdf_path)
+        word_count = len(text.split())
         
-        # Clean the markdown text
-        cleaned_text = self.cleaner.clean_text(markdown_text)
-        word_count = len(cleaned_text.split())
-        
-        print(f"  Extracted: {word_count} words from structured markdown")
-        
+        print(f"  Extracted: {word_count} words")
         print(f"  Creating chunks...")
-        chunks = self.chunker.chunk_text(cleaned_text, pdf_path.name)
+        chunks = self.chunker.chunk_text(text, pdf_path.name)
         
         print(f"  Created: {len(chunks)} chunks")
         return chunks, word_count
@@ -338,9 +285,21 @@ class DocumentIngester:
 
 def main():
     """Run document ingestion pipeline."""
+    # Check both directories - prioritize data/pdfs (upload directory) then fall back to data/raw_docs
+    upload_dir = Path("data/pdfs")
+    raw_dir = Path("data/raw_docs")
+    
+    if upload_dir.exists() and list(upload_dir.glob("*.pdf")):
+        input_dir = upload_dir
+    elif raw_dir.exists():
+        input_dir = raw_dir
+    else:
+        input_dir = upload_dir  # Default to upload dir if neither exists
+    
     ingester = DocumentIngester(
-        raw_docs_dir="data/raw_docs",
+        raw_docs_dir=str(input_dir),
         output_dir="data/processed_chunks",
+        converted_docs_dir="data/converted_docs",
         chunk_size=500,
         overlap=100
     )
@@ -348,6 +307,19 @@ def main():
     try:
         stats, chunks = ingester.ingest_all()
         ingester.print_summary(stats)
+        
+        # Automatically build vectorstore
+        print("\n" + "="*60)
+        print("BUILDING VECTORSTORE")
+        print("="*60)
+        
+        from src.vectorstore import VectorStore
+        store = VectorStore()
+        store.ingest_chunks(chunks)
+        
+        print("\n✅ Vectorstore built successfully!")
+        print("You can now run: python -m uvicorn app.api:app --host 0.0.0.0 --port 8000")
+        
         return 0
     except Exception as e:
         print(f"\n[ERROR] {e}")
