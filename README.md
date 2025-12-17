@@ -68,17 +68,25 @@ erp-rag-mistral/
       app.js                  # UI logic (mode toggle, upload, query)
       styles.css              # UI styling
 
-  data/
-    pdfs/                     # Uploaded PDFs
-    processed_chunks/          # Chunk JSON
-    vectorstore/              # FAISS index + metadata
-    feedback/                  # Feedback JSON + fine-tuning export
+  requirements.txt            # Python dependencies
+  .env.example                # Environment variables template
+  .gitignore                  # Git ignore rules
+  README.md                   # This file
+  DESIGN_DOCUMENT.md          # Technical design and architecture
+  ingest.bat                  # Windows batch file for document ingestion
+  start_server.bat            # Windows batch file for server startup
+  validate_syntax.py          # Code syntax validation
+  test_hybrid_llm.py          # Hybrid LLM system tests
+  test_llm_mode_toggle.py     # LLM mode switching tests
 
-  requirements.txt
-  .env.example
-  test_hybrid_llm.py
-  test_llm_mode_toggle.py
+  data/                       # (generated at runtime, in .gitignore)
+    pdfs/                     # Uploaded PDFs
+    processed_chunks/         # Chunk JSON
+    vectorstore/              # FAISS index + metadata
+    feedback/                 # Feedback JSON + fine-tuning export
 ```
+
+**Note:** The `data/` directory is generated at runtime and is excluded from Git via `.gitignore`.
 
 ---
 
@@ -194,8 +202,8 @@ Note: the app loads the repo-root `.env` and uses `override=True` so `.env` take
 
 ### Accessing the UI
 
-- UI: `http://127.0.0.1:8000/ui/app.html`
-- API docs (Swagger): `http://127.0.0.1:8000/docs`
+- UI: `http://localhost:8000/ui/app.html`
+- API docs (Swagger): `http://localhost:8000/docs`
 
 ### Ingesting Documents
 
@@ -221,9 +229,9 @@ Outputs:
 - Via API:
 
 ```bash
-curl http://127.0.0.1:8000/api/llm/mode
+curl http://localhost:8000/api/llm/mode
 
-curl -X POST http://127.0.0.1:8000/api/llm/mode \
+curl -X POST http://localhost:8000/api/llm/mode \
   -H "Content-Type: application/json" \
   -d "{\"mode\":\"cloud\"}"
 ```
@@ -237,7 +245,7 @@ curl -X POST http://127.0.0.1:8000/api/llm/mode \
 - Submit feedback:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/feedback \
+curl -X POST http://localhost:8000/api/feedback \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is ERP?",
@@ -251,13 +259,13 @@ curl -X POST http://127.0.0.1:8000/api/feedback \
 - Analytics:
 
 ```bash
-curl http://127.0.0.1:8000/api/feedback/analytics
+curl http://localhost:8000/api/feedback/analytics
 ```
 
 - Export fine-tuning data:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/feedback/export
+curl -X POST http://localhost:8000/api/feedback/export
 ```
 
 ### Finance Domain Detection
@@ -272,7 +280,7 @@ curl "http://127.0.0.1:8000/api/finance/domain?query=How%20to%20post%20a%20journ
 
 Swagger UI:
 
-- `http://127.0.0.1:8000/docs`
+- `http://localhost:8000/docs`
 
 Common endpoints:
 
@@ -347,6 +355,25 @@ Then open:
 
 ---
 
+## 👤 Author & Attribution
+
+**Author:** Zaidaan Shiraz  
+**LinkedIn:** https://www.linkedin.com/in/zaidaanshiraz/  
+**GitHub:** [erp-rag-mistral](https://github.com/zaidaanshiraz/erp-rag-mistral)
+
+---
+
 ## 📄 License
 
-MIT
+MIT License - See LICENSE file for details
+
+---
+
+## 📊 Document Information
+
+**Project Version:** 1.0.0  
+**Document Version:** 1.0  
+**Last Updated:** December 17, 2025  
+**Status:** Production Ready  
+
+For technical architecture details, design decisions, and future enhancements, see [DESIGN_DOCUMENT.md](DESIGN_DOCUMENT.md).
