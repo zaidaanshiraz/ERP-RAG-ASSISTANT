@@ -1,27 +1,28 @@
-﻿# ERP RAG Assistant (Hybrid LLM: Ollama + Groq) — Complete Setup Guide
+# ERP RAG Assistant (Hybrid LLM: Ollama + Groq) — Complete Setup Guide
 
 A Retrieval-Augmented Generation (RAG) system for ERP PDF documentation with source-cited Q&A, runtime LLM mode switching, and an optional feedback loop.
 
 ## 📋 Table of Contents
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Installation Guide](#installation-guide)
+- [Features](#-features)
+- [Project Structure](#-project-structure)
+- [Prerequisites](#-prerequisites)
+- [Installation Guide](#-installation-guide)
   - [Step 1: Install Python](#step-1-install-python)
   - [Step 2: Install Ollama (Local Mode)](#step-2-install-ollama-local-mode)
   - [Step 3: Get the Project](#step-3-get-the-project)
   - [Step 4: Create Virtual Environment](#step-4-create-virtual-environment)
   - [Step 5: Install Dependencies](#step-5-install-dependencies)
   - [Step 6: Configure Environment (.env)](#step-6-configure-environment-env)
-- [Usage Guide](#usage-guide)
+- [Usage Guide](#-usage-guide)
   - [Starting the Server](#starting-the-server)
   - [Accessing the UI](#accessing-the-ui)
   - [Ingesting Documents](#ingesting-documents)
   - [LLM Mode Switching](#llm-mode-switching)
-- [Advanced Features](#advanced-features)
-- [API Documentation](#api-documentation)
-- [Tests](#tests)
-- [Troubleshooting](#troubleshooting)
+- [Advanced Features](#-advanced-features)
+- [API Documentation](#-api-documentation)
+- [Tests](#-tests)
+- [Troubleshooting](#-troubleshooting)
+- [Quick Start Summary](#-quick-start-summary)
 
 ---
 
