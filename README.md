@@ -319,7 +319,7 @@ If the server is running, you can also test the API toggle:
 
 ---
 
-## 🎉 Quick Start Summary
+## Quick Start Summary
 
 ### Option 1: Using Batch Files (Easiest - Windows)
 
