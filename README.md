@@ -359,7 +359,7 @@ Then open:
 
 **Author:** Zaidaan Shiraz  
 **LinkedIn:** https://www.linkedin.com/in/zaidaanshiraz/  
-**GitHub:** [erp-rag-qwen](https://github.com/zaidaanshiraz/erp-rag-mistral)
+**GitHub:** [erp-rag-assistant](https://github.com/zaidaanshiraz/erp-rag-assistant)
 
 ---
 
