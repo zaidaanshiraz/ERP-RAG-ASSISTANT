@@ -90,7 +90,7 @@ erp-rag-mistral/
 
 ---
 
-## 🔧 Prerequisites
+## Prerequisites
 
 1. Windows 10/11 (Linux/macOS should work with minor command changes)
 2. Python 3.10+ recommended
