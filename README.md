@@ -2,7 +2,7 @@
 
 A Retrieval-Augmented Generation (RAG) system for ERP PDF documentation with source-cited Q&A, runtime LLM mode switching, and an optional feedback loop.
 
-## 📋 Table of Contents
+## Table of Contents
 - [Features](#-features)
 - [Project Structure](#-project-structure)
 - [Prerequisites](#-prerequisites)
@@ -26,7 +26,7 @@ A Retrieval-Augmented Generation (RAG) system for ERP PDF documentation with sou
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core Functionality
 - **RAG Q&A with citations**: retrieves relevant chunks and appends a final `Sources:` section.
@@ -44,7 +44,7 @@ A Retrieval-Augmented Generation (RAG) system for ERP PDF documentation with sou
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 erp-rag-mistral/
@@ -102,7 +102,7 @@ erp-rag-mistral/
 
 ---
 
-## 📦 Installation Guide
+## Installation Guide
 
 ### Step 1: Install Python
 
@@ -192,7 +192,7 @@ Note: the app loads the repo-root `.env` and uses `override=True` so `.env` take
 
 ---
 
-## 🚀 Usage Guide
+## Usage Guide
 
 ### Starting the Server
 
@@ -238,7 +238,7 @@ curl -X POST http://localhost:8000/api/llm/mode \
 
 ---
 
-## 🎯 Advanced Features
+## Advanced Features
 
 ### Feedback System
 
@@ -276,7 +276,7 @@ curl "http://127.0.0.1:8000/api/finance/domain?query=How%20to%20post%20a%20journ
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 Swagger UI:
 
@@ -295,7 +295,7 @@ Common endpoints:
 
 ---
 
-## ✅ Tests
+## Tests
 
 ```powershell
 .\.venv\Scripts\python.exe validate_syntax.py
@@ -310,7 +310,7 @@ If the server is running, you can also test the API toggle:
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 - `Invalid Groq API key (401)`: confirm `GROQ_API_KEY` in `.env` and that you don't have an older shell `GROQ_API_KEY` overriding it.
 - `Cannot connect to Ollama`: start Ollama with `ollama serve` and confirm the model exists with `ollama list`.
@@ -355,25 +355,18 @@ Then open:
 
 ---
 
-## 👤 Author & Attribution
+## Author & Attribution
 
 **Author:** Zaidaan Shiraz  
 **LinkedIn:** https://www.linkedin.com/in/zaidaanshiraz/  
-**GitHub:** [erp-rag-mistral](https://github.com/zaidaanshiraz/erp-rag-mistral)
+**GitHub:** [erp-rag-qwen](https://github.com/zaidaanshiraz/erp-rag-mistral)
 
 ---
 
-## 📄 License
+## License
 
 MIT License - See LICENSE file for details
 
 ---
-
-## 📊 Document Information
-
-**Project Version:** 1.0.0  
-**Document Version:** 1.0  
-**Last Updated:** December 17, 2025  
-**Status:** Production Ready  
 
 For technical architecture details, design decisions, and future enhancements, see [DESIGN_DOCUMENT.md](DESIGN_DOCUMENT.md).
