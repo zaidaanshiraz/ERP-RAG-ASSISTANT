@@ -1,7 +1,5 @@
 # ERP RAG Assistant - Design Document
 
-**Version:** 1.0 | **Status:** Production Ready | **Word Count:** ~500
-
 ---
 
 ## Table of Contents
