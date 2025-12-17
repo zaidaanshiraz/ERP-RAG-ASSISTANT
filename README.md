@@ -47,7 +47,7 @@ A Retrieval-Augmented Generation (RAG) system for ERP PDF documentation with sou
 ## Project Structure
 
 ```
-erp-rag-mistral/
+erp-rag-assistant/
   app/
     api.py                    # FastAPI backend + serves UI at /ui
 
