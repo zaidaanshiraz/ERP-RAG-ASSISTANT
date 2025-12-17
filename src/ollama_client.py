@@ -2,47 +2,33 @@
 Ollama API client for local LLM inference.
 
 Calls the local Ollama instance running on localhost:11434.
-Uses Mistral model for generation.
+Uses Qwen 2.5 3B model for fast, efficient generation.
 """
 
 import requests
 from typing import Optional
+from . import parameters
 
 
-SYSTEM_PROMPT = """You are a senior ERP implementation consultant with 15+ years of experience across enterprise systems (SAP, Oracle EBS, Microsoft Dynamics, etc.).
+SYSTEM_PROMPT = """You are a helpful and knowledgeable ERP consultant assistant. Your role is to provide clear, accurate, and comprehensive answers to questions about Enterprise Resource Planning systems, business processes, and implementation strategies.
 
-Your expertise:
-- Deep knowledge of financial accounting (GL, AP, AR, Fixed Assets)
-- Manufacturing and supply chain processes (PP, MM, WM)
-- System configuration and technical workflows
-- Best practices for enterprise implementations
-- Compliance requirements (SOX, GAAP, IFRS)
+Guidelines:
+- Answer questions in a conversational, friendly tone
+- Provide detailed explanations with practical examples
+- Structure complex answers with clear sections and bullet points
+- Always cite your sources when referencing specific information
+- Include document names and relevance in your citations
+- Be honest about limitations if information is incomplete
+- Focus on practical, actionable guidance
+- Use plain language while maintaining technical accuracy
+- Keep responses concise but thorough
 
-Communication style:
-- Authoritative yet approachable
-- Precise technical terminology
-- Clear, structured explanations
-- Action-oriented guidance
-- Zero tolerance for speculation or hallucination
+Citation format:
+- End answers with "Sources:" followed by document names
+- Include document names naturally in explanations: "According to [Document Name]..."
+- Provide context about what information came from which source
 
-Core principles:
-1. Answer ONLY from provided documentation context
-2. Maintain strict vendor separation (never mix SAP and Oracle procedures)
-3. Use exact terminology from source documents (transaction codes, field names, menu paths)
-4. Structure all guidance with clear sections: Overview, Prerequisites, Steps, Considerations, Sources
-5. Admit limitations when context is insufficient
-6. Focus on practical implementation, not theoretical concepts
-7. Include risk mitigation and common pitfalls
-
-Writing standards:
-- Use imperative mood: "Navigate to...", "Configure...", "Execute..."
-- Avoid filler: "simply", "just", "easily", "you can", "you should"
-- Include specifics: exact menu paths, field names, validation rules
-- Bold critical warnings or key terms
-- Provide 150-300 words per response (adjust for question complexity)
-
-You represent professional excellence in ERP consulting.
-"""
+Your goal is to be helpful, accurate, and transparent about where information comes from."""
 
 
 class OllamaClient:
@@ -51,9 +37,9 @@ class OllamaClient:
     def __init__(
         self,
         base_url: str = "http://localhost:11434",
-        model: str = "qwen2.5:3b-instruct",
-        temperature: float = 0.3,
-        max_tokens: int = 500
+        model: str = "qwen2.5:3b-instruct-q4_K_M",
+        temperature: float = None,
+        max_tokens: int = None
     ):
         """
         Initialize Ollama client.
@@ -61,13 +47,13 @@ class OllamaClient:
         Args:
             base_url: Ollama API base URL
             model: Model name to use
-            temperature: Generation temperature (0.3 = balanced creativity/consistency)
-            max_tokens: Maximum tokens to generate (500 for faster responses on GPU)
+            temperature: Generation temperature (uses parameters.TEMPERATURE if not set)
+            max_tokens: Maximum tokens to generate (uses parameters.MAX_TOKENS if not set)
         """
         self.base_url = base_url
         self.model = model
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.temperature = temperature if temperature is not None else parameters.TEMPERATURE
+        self.max_tokens = max_tokens if max_tokens is not None else parameters.MAX_TOKENS
         self._verify_connection()
     
     def _verify_connection(self) -> None:
@@ -117,31 +103,62 @@ class OllamaClient:
         Raises:
             RuntimeError: If API call fails
         """
-        try:
-            response = requests.post(
-                f"{self.base_url}/api/chat",
-                json={
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "stream": False,
-                    "options": {
-                        "temperature": self.temperature,
-                        "top_p": 0.9,
-                        "top_k": 40,
-                        "repeat_penalty": 1.1,
-                        "num_predict": self.max_tokens,
-                    }
-                },
-                timeout=300
-            )
-            response.raise_for_status()
-            return response.json()["message"]["content"].strip()
-        except requests.exceptions.Timeout:
-            raise RuntimeError(f"Ollama request timed out after 300 seconds. Model may be running on CPU. Try: ollama pull mistral:7b-instruct-q4_K_M (quantized version)") from None
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Ollama API error: {e}") from e
-        except KeyError:
-            raise RuntimeError("Unexpected response format from Ollama") from None
+        max_retries = 2
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                response = requests.post(
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "stream": False,
+                        "options": {
+                            "temperature": self.temperature,
+                            "top_p": 0.9,
+                            "top_k": parameters.TOP_K_LLM,
+                            "repeat_penalty": parameters.REPEAT_PENALTY,
+                            "num_predict": self.max_tokens,
+                        }
+                    },
+                    timeout=parameters.REQUEST_TIMEOUT
+                )
+                response.raise_for_status()
+                return response.json()["message"]["content"].strip()
+            
+            except requests.exceptions.Timeout:
+                raise RuntimeError(
+                    f"Ollama request timed out after {parameters.REQUEST_TIMEOUT} seconds.\n"
+                    f"Model '{self.model}' may be overloaded or running on slow hardware.\n"
+                    f"Try: ollama pull {self.model}"
+                ) from None
+            
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 500:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        import time
+                        print(f"[Ollama] Server error (500), retrying... ({retry_count}/{max_retries})")
+                        time.sleep(2)  # Wait 2 seconds before retry
+                        continue
+                    
+                    raise RuntimeError(
+                        f"Ollama server error (500) - Model crashed after retries.\n"
+                        f"Solutions:\n"
+                        f"1. The model ran out of memory. Try reducing MAX_TOKENS or TOP_K_RETRIEVAL in parameters.py\n"
+                        f"2. Restart Ollama: ollama serve\n"
+                        f"3. Ensure model is pulled: ollama pull {self.model}\n"
+                        f"4. Check available system memory (need at least 4GB free)"
+                    ) from e
+                else:
+                    raise RuntimeError(f"Ollama API error ({e.response.status_code}): {e}") from e
+            
+            except requests.exceptions.RequestException as e:
+                raise RuntimeError(f"Ollama API connection error: {e}") from e
+            
+            except KeyError:
+                raise RuntimeError("Unexpected response format from Ollama") from None

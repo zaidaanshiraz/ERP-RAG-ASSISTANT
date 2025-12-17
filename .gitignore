@@ -60,6 +60,9 @@ data/feedback/finetuning_data.jsonl
 data/converted_docs/
 data/pdfs/*.pdf
 
+# Additional Files (not needed in repo)
+additional_files/
+
 # Logs & Temporary
 logs/
 *.log

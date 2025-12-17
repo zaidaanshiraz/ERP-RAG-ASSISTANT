@@ -118,6 +118,19 @@ class SystemInfo(BaseModel):
     total_chunks: int
     embedding_model: str
     llm_model: str
+    llm_mode: str
+
+
+class LLMModeRequest(BaseModel):
+    """LLM mode switch request."""
+    mode: str  # "local" or "cloud"
+
+
+class LLMModeResponse(BaseModel):
+    """LLM mode response."""
+    current_mode: str
+    available_modes: List[str]
+    message: str
 
 
 # ============================================================================
@@ -140,6 +153,54 @@ async def health_check():
     }
 
 
+@app.get("/api/llm/mode", response_model=LLMModeResponse)
+async def get_llm_mode():
+    """Get current LLM mode and available options."""
+    if not rag_pipeline:
+        raise HTTPException(status_code=503, detail="System initializing")
+    
+    return LLMModeResponse(
+        current_mode=rag_pipeline._current_mode,
+        available_modes=["local", "cloud"],
+        message=f"Currently using {rag_pipeline._current_mode} LLM"
+    )
+
+
+@app.post("/api/llm/mode", response_model=LLMModeResponse)
+async def set_llm_mode(request: LLMModeRequest):
+    """
+    Switch LLM mode between local and cloud.
+    
+    Modes:
+    - local: Uses Ollama with Qwen 2.5 3B (fast, private, requires local Ollama)
+    - cloud: Uses Groq API (fast, high-quality, requires GROQ_API_KEY)
+    """
+    if not rag_pipeline:
+        raise HTTPException(status_code=503, detail="System initializing")
+    
+    mode = request.mode.lower().strip()
+    
+    if mode not in ["local", "cloud"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mode '{mode}'. Must be 'local' or 'cloud'"
+        )
+    
+    try:
+        logger.info(f"Switching LLM mode to: {mode}")
+        rag_pipeline.switch_llm_mode(mode)
+        
+        return LLMModeResponse(
+            current_mode=rag_pipeline._current_mode,
+            available_modes=["local", "cloud"],
+            message=f"Successfully switched to {mode} LLM"
+        )
+    except Exception as e:
+        logger.error(f"LLM mode switch error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @app.get("/info", response_model=SystemInfo)
 async def get_info():
     """Get system information."""
@@ -150,7 +211,8 @@ async def get_info():
         status="ready",
         total_chunks=len(rag_pipeline.vectorstore.chunks),
         embedding_model=rag_pipeline.vectorstore.model_name,
-        llm_model=rag_pipeline.llm.model
+        llm_model=rag_pipeline.llm.model,
+        llm_mode=rag_pipeline._current_mode
     )
 
 
@@ -164,7 +226,7 @@ async def query(request: QueryRequest):
     Answer a question with citations.
     
     The system retrieves relevant documents and uses an LLM to generate
-    an answer with proper source attribution.
+    an answer with proper source attribution using system prompts from RAG pipeline.
     """
     if not rag_pipeline:
         raise HTTPException(status_code=503, detail="System initializing")
@@ -174,10 +236,16 @@ async def query(request: QueryRequest):
     
     try:
         logger.info(f"Query: {request.query}")
+        logger.info(f"Using LLM mode: {rag_pipeline._current_mode}")
+        logger.info(f"Using system prompts from RAG pipeline")
+        
+        # Call RAG pipeline which uses configured system prompts
         response = rag_pipeline.answer(
             query=request.query,
             return_sources=True
         )
+        
+        logger.info(f"Query successful, returned {response['num_sources']} sources")
         
         return QueryResponse(
             answer=response["answer"],
@@ -289,16 +357,21 @@ async def submit_feedback(request: FeedbackRequest):
     
     Enables learning from user satisfaction to improve future answers.
     """
+    logger.info(f"[Feedback] Received feedback request: rating={request.rating}, query_len={len(request.query)}")
+    
     if not feedback_manager:
+        logger.error("[Feedback] Feedback manager not initialized")
         raise HTTPException(status_code=503, detail="Feedback system not initialized")
     
     if request.rating not in ['positive', 'negative']:
+        logger.error(f"[Feedback] Invalid rating: {request.rating}")
         raise HTTPException(status_code=400, detail="Rating must be 'positive' or 'negative'")
     
     try:
         # Ensure sources is a list
         sources = request.sources if request.sources else []
         
+        logger.info(f"[Feedback] Adding feedback with {len(sources)} sources")
         feedback_entry = feedback_manager.add_feedback(
             query=request.query,
             answer=request.answer,
@@ -308,7 +381,7 @@ async def submit_feedback(request: FeedbackRequest):
             user_id=request.user_id
         )
         
-        logger.info(f"Feedback submitted: {request.rating} | Query: {request.query[:50]}...")
+        logger.info(f"[Feedback] Successfully submitted: {request.rating} | Query: {request.query[:50]}...")
         
         return {
             "status": "success",
@@ -316,7 +389,7 @@ async def submit_feedback(request: FeedbackRequest):
             "message": "Thank you for your feedback!"
         }
     except Exception as e:
-        logger.error(f"Feedback submission error: {e}", exc_info=True)
+        logger.error(f"[Feedback] Submission error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Feedback error: {str(e)}")
 
 

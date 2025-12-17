@@ -68,16 +68,20 @@ class TextCleaner:
 class DocumentChunker:
     """Split documents into overlapping chunks."""
     
-    def __init__(self, chunk_size: int = 500, overlap: int = 100):
+    def __init__(self, chunk_size: int = None, overlap: int = None):
         """
         Initialize chunker.
         
         Args:
-            chunk_size: Target words per chunk
-            overlap: Words to overlap between chunks
+            chunk_size: Target words per chunk (uses parameters.CHUNK_SIZE if not set)
+            overlap: Words to overlap between chunks (uses parameters.CHUNK_OVERLAP if not set)
         """
-        self.chunk_size = chunk_size
-        self.overlap = overlap
+        try:
+            from . import parameters
+        except ImportError:
+            import parameters
+        self.chunk_size = chunk_size if chunk_size is not None else parameters.CHUNK_SIZE
+        self.overlap = overlap if overlap is not None else parameters.CHUNK_OVERLAP
     
     def chunk_text(self, text: str, source_file: str) -> List[Dict]:
         """
@@ -124,8 +128,8 @@ class DocumentIngester:
         raw_docs_dir: str = "data/raw_docs",
         output_dir: str = "data/processed_chunks",
         converted_docs_dir: str = "data/converted_docs",
-        chunk_size: int = 500,
-        overlap: int = 100
+        chunk_size: int = None,
+        overlap: int = None
     ):
         """
         Initialize ingester.
@@ -134,14 +138,18 @@ class DocumentIngester:
             raw_docs_dir: Directory containing PDF files
             output_dir: Directory to save processed chunks
             converted_docs_dir: Directory to save extracted markdown files
-            chunk_size: Words per chunk
-            overlap: Word overlap between chunks
+            chunk_size: Words per chunk (uses parameters.CHUNK_SIZE if not set)
+            overlap: Word overlap between chunks (uses parameters.CHUNK_OVERLAP if not set)
         """
+        try:
+            from . import parameters
+        except ImportError:
+            import parameters
         self.raw_docs_dir = Path(raw_docs_dir)
         self.output_dir = Path(output_dir)
         self.converted_docs_dir = Path(converted_docs_dir)
-        self.chunk_size = chunk_size
-        self.overlap = overlap
+        self.chunk_size = chunk_size if chunk_size is not None else parameters.CHUNK_SIZE
+        self.overlap = overlap if overlap is not None else parameters.CHUNK_OVERLAP
         
         # Create output directories
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -155,7 +163,7 @@ class DocumentIngester:
             )
         
         self.cleaner = TextCleaner()
-        self.chunker = DocumentChunker(chunk_size=chunk_size, overlap=overlap)
+        self.chunker = DocumentChunker(chunk_size=self.chunk_size, overlap=self.overlap)
     
     def extract_pdf_text(self, pdf_path: Path) -> str:
         """
@@ -299,9 +307,8 @@ def main():
     ingester = DocumentIngester(
         raw_docs_dir=str(input_dir),
         output_dir="data/processed_chunks",
-        converted_docs_dir="data/converted_docs",
-        chunk_size=500,
-        overlap=100
+        converted_docs_dir="data/converted_docs"
+        # Uses parameters.CHUNK_SIZE and parameters.CHUNK_OVERLAP
     )
     
     try:

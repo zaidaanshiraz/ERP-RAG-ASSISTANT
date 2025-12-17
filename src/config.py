@@ -19,12 +19,12 @@ class Config:
         
         # Model configuration (keep existing defaults)
         self.embedding_model = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        # qwen2.5:3b-instruct - Optimized for speed and quality on all platforms
+        # qwen2.5:3b-instruct-q4_K_M - Quantized for optimized speed and quality
         # GPU (GTX 1660): 1-3 seconds
         # CPU (8+ cores): 4-6 seconds
         # Iris Xe: 5-10 seconds
-        # Small size (2.3GB) but excellent quality
-        self.ollama_model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b-instruct")
+        # Quantized size (2.0GB) with excellent quality and faster inference
+        self.ollama_model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b-instruct-q4_K_M")
         
     def _get_device_config(self) -> bool:
         """
